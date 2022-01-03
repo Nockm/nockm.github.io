@@ -2,13 +2,24 @@
     DOM Navigation
 */
 
-const elements = {
-    svgObject: document.getElementById("worldSvg"),
-    guessSelect: document.getElementById("guessSelect"),
-    makeGuessButton: document.getElementById("makeGuessButton"),
-};
+function getElements() {
+    const blah = document.getElementById("worldSvg");
+    console.log(blah);
 
-const SVG_OBJECT_TO_ELEMENT = (x) => x.contentDocument.children[0];
+    return {
+        svgObject: document.getElementById("worldSvg"),
+        guessSelect: document.getElementById("guessSelect"),
+        makeGuessButton: document.getElementById("makeGuessButton"),
+    };
+}
+
+let elements = getElements();
+
+const SVG_OBJECT_TO_ELEMENT = (x) => {
+    console.log(x);
+    console.log(x.contentDocument);
+    return x.contentDocument.children[0]
+};
 const SVG_ELEMENT_TO_AREAS = (x) => x.children[1].children;
 const SVG_PROP_AREA_NAME = "title";
 
@@ -39,10 +50,12 @@ const guesses = {};
 */
 
 elements.svgObject.addEventListener("load",function() {
-    init();
+    setTimeout(init, 5000)
+    // init();
 }, false);
 
 function init() {
+    elements = getElements();
     // Get the <svg> element inside the .svg file.
     svgElement = SVG_OBJECT_TO_ELEMENT(elements.svgObject);
 
