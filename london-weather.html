@@ -296,9 +296,11 @@
         const current = weatherData[0] || {};
 
         return (
-          <div className="h-screen w-full bg-slate-900 text-slate-200 font-sans selection:bg-indigo-500 selection:text-white flex flex-col md:flex-row overflow-hidden">
+          // Changed: bg-slate-900 to bg-black
+          <div className="h-screen w-full bg-black text-slate-200 font-sans selection:bg-indigo-500 selection:text-white flex flex-col md:flex-row overflow-hidden">
             {/* --- Column 1: Narrow Sidebar (Title & Controls) --- */}
-            <aside className="w-full md:w-80 flex-none p-4 md:p-6 flex flex-row md:flex-col justify-between gap-6 border-b md:border-b-0 md:border-r border-slate-800/50 bg-slate-900/50 z-10">
+            {/* Changed: bg-slate-900/50 to bg-black to match request */}
+            <aside className="w-full md:w-80 flex-none p-4 md:p-6 flex flex-row md:flex-col justify-between gap-6 border-b md:border-b-0 md:border-r border-slate-800/50 bg-black z-10">
               {/* Top Section */}
               <div className="flex-1">
                 <div className="flex items-center gap-2 text-indigo-400 mb-1">
@@ -371,8 +373,8 @@
                       Next 12 Hours
                     </h4>
                   </div>
-                  {/* Col 2: Chart */}
-                  <div className="flex-1 min-w-0 bg-slate-900/50 rounded-lg p-4 h-full flex flex-col">
+                  {/* Col 2: Chart - Removed bg-slate-900/50 */}
+                  <div className="flex-1 min-w-0 rounded-lg p-4 h-full flex flex-col">
                     <BarChart
                       data={weatherData}
                       dataKey="temp"
@@ -400,8 +402,8 @@
                       Chance of Rain
                     </h4>
                   </div>
-                  {/* Col 2: Chart */}
-                  <div className="flex-1 min-w-0 bg-slate-900/50 rounded-lg p-4 h-full flex flex-col">
+                  {/* Col 2: Chart - Removed bg-slate-900/50 */}
+                  <div className="flex-1 min-w-0 rounded-lg p-4 h-full flex flex-col">
                     <BarChart
                       data={weatherData}
                       dataKey="precip"
@@ -429,8 +431,8 @@
                       Wind Trend
                     </h4>
                   </div>
-                  {/* Col 2: Chart */}
-                  <div className="flex-1 min-w-0 bg-slate-900/50 rounded-lg p-4 h-full flex flex-col">
+                  {/* Col 2: Chart - Removed bg-slate-900/50 */}
+                  <div className="flex-1 min-w-0 rounded-lg p-4 h-full flex flex-col">
                     <BarChart
                       data={weatherData}
                       dataKey="wind"
