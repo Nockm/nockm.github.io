@@ -11,13 +11,21 @@
     <!-- Babel for JSX transformation -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
+    <!-- Google Fonts: Poppins -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
     <!-- Tailwind Config to match the slate/indigo theme preferences -->
     <script>
       tailwind.config = {
         theme: {
           extend: {
             fontFamily: {
-              sans: ["Inter", "sans-serif"],
+              sans: ["Poppins", "sans-serif"],
             },
           },
         },
@@ -70,7 +78,7 @@
           time: now.toISOString(),
           temp: 9 + Math.random() * 3, // 9-12°C
           precip: Math.random() * 60, // 0-60% chance
-          wind: 15 + Math.random() * 10, // 15-25 km/h
+          wind: 10 + Math.random() * 10, // 10-20 mph
         };
       });
 
@@ -107,7 +115,8 @@
         return (
           <div className="w-full flex-1 flex gap-3 text-xs min-h-0">
             {/* Y-Axis Labels Column */}
-            <div className="relative w-8 h-full text-slate-500 font-mono text-right shrink-0">
+            {/* Removed font-mono to use Poppins everywhere */}
+            <div className="relative w-8 h-full text-slate-500 text-right shrink-0">
               {ticks.map((tick, i) => (
                 <span
                   key={i}
@@ -190,8 +199,9 @@
                       >
                         {timeLabel}
                       </span>
+                      {/* Removed font-mono */}
                       <span
-                        className={`text-sm sm:text-base font-mono font-bold ${
+                        className={`text-sm sm:text-base font-bold ${
                           isCurrent ? "text-indigo-300" : "text-slate-300"
                         }`}
                       >
@@ -206,13 +216,13 @@
         );
       };
 
-      const StatSummary = ({ icon: Icon, label, value, subtext, color }) => (
-        <div className="flex flex-col items-start gap-3">
-          <div className={`p-3 rounded-full ${color} bg-opacity-20 text-white`}>
-            <Icon size={24} />
+      // Updated StatSummary: Centered alignment
+      const StatSummary = ({ icon: Icon, value, subtext, color }) => (
+        <div className="flex flex-col items-center gap-3 text-center w-full">
+          <div className={`p-4 rounded-full ${color} bg-opacity-20 text-white`}>
+            <Icon size={72} />
           </div>
           <div>
-            <p className="text-slate-400 text-sm font-medium mb-1">{label}</p>
             <div className="flex flex-col gap-0">
               <h3 className="text-3xl font-bold text-slate-100 tracking-tight">
                 {value}
@@ -232,7 +242,6 @@
         const [usingMock, setUsingMock] = useState(false);
         const [lastUpdated, setLastUpdated] = useState(null);
 
-        // New State for Time and Ref for tracking hour changes
         const [currentTime, setCurrentTime] = useState(new Date());
         const lastHourRef = useRef(new Date().getHours());
 
@@ -241,7 +250,7 @@
           setError(null);
           try {
             const response = await fetch(
-              `https://api.open-meteo.com/v1/forecast?latitude=${LOCATION.lat}&longitude=${LOCATION.lon}&hourly=temperature_2m,precipitation_probability,windspeed_10m&forecast_days=2&timezone=auto`
+              `https://api.open-meteo.com/v1/forecast?latitude=${LOCATION.lat}&longitude=${LOCATION.lon}&hourly=temperature_2m,precipitation_probability,windspeed_10m&wind_speed_unit=mph&forecast_days=2&timezone=auto`
             );
 
             if (!response.ok) throw new Error("Failed to fetch data");
@@ -282,13 +291,11 @@
           }
         };
 
-        // Effect for Clock and Auto-Refresh on Hour Change
         useEffect(() => {
           const timer = setInterval(() => {
             const now = new Date();
             setCurrentTime(now);
 
-            // Logic: If the current hour is different from the last checked hour, refresh data
             if (now.getHours() !== lastHourRef.current) {
               lastHourRef.current = now.getHours();
               console.log("Hour changed, refreshing data...");
@@ -299,10 +306,8 @@
           return () => clearInterval(timer);
         }, []);
 
-        // Initial Fetch
         useEffect(() => {
           fetchWeather();
-          // Keep the safety 15min interval as well
           const interval = setInterval(fetchWeather, 900000);
           return () => clearInterval(interval);
         }, []);
@@ -316,12 +321,6 @@
               {/* Top Section */}
               <div className="flex-1 flex flex-col justify-between md:justify-start gap-4">
                 <div>
-                  <div className="flex items-center gap-2 text-indigo-400 mb-1">
-                    <MapPin size={18} />
-                    <span className="font-semibold tracking-wide uppercase text-xs">
-                      Current Location
-                    </span>
-                  </div>
                   <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight leading-tight">
                     {LOCATION.name}
                   </h1>
@@ -329,7 +328,7 @@
 
                 {/* Clock Section */}
                 <div className="hidden md:block mt-8">
-                  <div className="text-5xl font-mono font-light text-white tracking-tighter">
+                  <div className="text-5xl font-light text-white tracking-tighter">
                     {currentTime.toLocaleTimeString()}
                   </div>
                   <p className="text-slate-400 text-sm mt-2 flex items-center gap-2">
@@ -344,7 +343,7 @@
 
                 {/* Mobile Clock (Simplified) */}
                 <div className="block md:hidden text-right">
-                  <div className="text-xl font-mono font-bold text-white">
+                  <div className="text-xl font-bold text-white">
                     {currentTime.toLocaleTimeString()}
                   </div>
                   <p className="text-slate-400 text-xs">
@@ -388,12 +387,11 @@
 
               {/* --- Temperature Card --- */}
               {!loading && (
-                <Card className="flex-1 min-h-0 flex flex-row gap-6">
-                  {/* Col 1: Summary */}
-                  <div className="flex flex-col justify-between w-32 md:w-40 shrink-0">
+                <Card className="flex-1 min-h-0 flex flex-row gap-0">
+                  {/* Col 1: Summary (Centered) */}
+                  <div className="flex flex-col justify-between items-center w-32 md:w-40 shrink-0 text-center">
                     <StatSummary
                       icon={Thermometer}
-                      label="Temperature"
                       value={`${Math.round(current.temp)}°C`}
                       subtext={`Feels like ${Math.round(current.temp - 2)}°`}
                       color="bg-orange-500"
@@ -403,7 +401,7 @@
                     </h4>
                   </div>
                   {/* Col 2: Chart */}
-                  <div className="flex-1 min-w-0 rounded-lg p-4 h-full flex flex-col">
+                  <div className="flex-1 min-w-0 rounded-lg py-4 pr-4 pl-0 h-full flex flex-col">
                     <BarChart
                       data={weatherData}
                       dataKey="temp"
@@ -417,14 +415,12 @@
 
               {/* --- Precipitation Card --- */}
               {!loading && (
-                <Card className="flex-1 min-h-0 flex flex-row gap-6">
-                  {/* Col 1: Summary */}
-                  <div className="flex flex-col justify-between w-32 md:w-40 shrink-0">
+                <Card className="flex-1 min-h-0 flex flex-row gap-0">
+                  {/* Col 1: Summary (Centered) */}
+                  <div className="flex flex-col justify-between items-center w-32 md:w-40 shrink-0 text-center">
                     <StatSummary
                       icon={CloudRain}
-                      label="Precipitation"
                       value={`${Math.round(current.precip)}%`}
-                      subtext="Probability"
                       color="bg-blue-500"
                     />
                     <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -432,7 +428,7 @@
                     </h4>
                   </div>
                   {/* Col 2: Chart */}
-                  <div className="flex-1 min-w-0 rounded-lg p-4 h-full flex flex-col">
+                  <div className="flex-1 min-w-0 rounded-lg py-4 pr-4 pl-0 h-full flex flex-col">
                     <BarChart
                       data={weatherData}
                       dataKey="precip"
@@ -446,14 +442,12 @@
 
               {/* --- Wind Card --- */}
               {!loading && (
-                <Card className="flex-1 min-h-0 flex flex-row gap-6">
-                  {/* Col 1: Summary */}
-                  <div className="flex flex-col justify-between w-32 md:w-40 shrink-0">
+                <Card className="flex-1 min-h-0 flex flex-row gap-0">
+                  {/* Col 1: Summary (Centered) */}
+                  <div className="flex flex-col justify-between items-center w-32 md:w-40 shrink-0 text-center">
                     <StatSummary
                       icon={Wind}
-                      label="Wind Speed"
-                      value={`${Math.round(current.wind)}`}
-                      subtext="km/h"
+                      value={`${Math.round(current.wind)} mph`}
                       color="bg-teal-500"
                     />
                     <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -461,11 +455,11 @@
                     </h4>
                   </div>
                   {/* Col 2: Chart */}
-                  <div className="flex-1 min-w-0 rounded-lg p-4 h-full flex flex-col">
+                  <div className="flex-1 min-w-0 rounded-lg py-4 pr-4 pl-0 h-full flex flex-col">
                     <BarChart
                       data={weatherData}
                       dataKey="wind"
-                      unit=" km/h"
+                      unit=" mph"
                       colorClass="bg-gradient-to-t from-teal-600 to-emerald-400"
                       maxDomain={null}
                     />
