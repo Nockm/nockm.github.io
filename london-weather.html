@@ -115,7 +115,6 @@
         return (
           <div className="w-full flex-1 flex gap-3 text-xs min-h-0">
             {/* Y-Axis Labels Column */}
-            {/* Removed font-mono to use Poppins everywhere */}
             <div className="relative w-8 h-full text-slate-500 text-right shrink-0">
               {ticks.map((tick, i) => (
                 <span
@@ -199,7 +198,6 @@
                       >
                         {timeLabel}
                       </span>
-                      {/* Removed font-mono */}
                       <span
                         className={`text-sm sm:text-base font-bold ${
                           isCurrent ? "text-indigo-300" : "text-slate-300"
@@ -228,7 +226,7 @@
                 {value}
               </h3>
               {subtext && (
-                <span className="text-xs text-slate-500 mt-1">{subtext}</span>
+                <span className="text-lg text-slate-500 mt-1">{subtext}</span>
               )}
             </div>
           </div>
@@ -318,40 +316,65 @@
           <div className="h-screen w-full bg-black text-slate-200 font-sans selection:bg-indigo-500 selection:text-white flex flex-col md:flex-row overflow-hidden">
             {/* --- Column 1: Narrow Sidebar (Title & Controls) --- */}
             <aside className="w-full md:w-80 flex-none p-4 md:p-6 flex flex-row md:flex-col justify-between gap-6 border-b md:border-b-0 md:border-r border-slate-800/50 bg-black z-10">
-              {/* Top Section */}
+              {/* Content Container */}
               <div className="flex-1 flex flex-col justify-between md:justify-start gap-4">
-                <div>
-                  <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight leading-tight">
-                    {LOCATION.name}
-                  </h1>
-                </div>
-
-                {/* Clock Section */}
-                <div className="hidden md:block mt-8">
-                  <div className="text-5xl font-light text-white tracking-tighter">
+                {/* 1. Desktop Clock Section (Moved to Top) */}
+                <div className="hidden md:block">
+                  {/* Increased text-5xl to text-7xl (approx 50% larger) */}
+                  <div className="text-7xl font-light text-white tracking-tighter leading-none">
                     {currentTime.toLocaleTimeString()}
                   </div>
-                  <p className="text-slate-400 text-sm mt-2 flex items-center gap-2">
-                    {currentTime.toLocaleDateString(undefined, {
-                      weekday: "long",
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </p>
                 </div>
 
-                {/* Mobile Clock (Simplified) */}
-                <div className="block md:hidden text-right">
-                  <div className="text-xl font-bold text-white">
-                    {currentTime.toLocaleTimeString()}
+                {/* 2. Mobile Header Row (Clock + Location) */}
+                <div className="flex md:hidden flex-row justify-between items-center w-full">
+                  <div className="flex flex-col">
+                    {/* Added opacity-50 */}
+                    <h1 className="text-2xl font-bold text-white/50 tracking-tight leading-tight">
+                      {LOCATION.name}
+                    </h1>
                   </div>
-                  <p className="text-slate-400 text-xs">
-                    {currentTime.toLocaleDateString(undefined, {
-                      weekday: "short",
-                      day: "numeric",
-                    })}
-                  </p>
+                  <div className="text-right">
+                    <div className="text-xl font-bold text-white">
+                      {currentTime.toLocaleTimeString()}
+                    </div>
+                    <p className="text-slate-400 text-xs">
+                      {currentTime.toLocaleDateString(undefined, {
+                        weekday: "short",
+                        day: "numeric",
+                      })}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 3. Desktop Bottom Section: Date & Location */}
+                {/* mt-auto pushes this section to the bottom of the flex container */}
+                <div className="hidden md:flex flex-col gap-4 mt-auto text-white">
+                  <div className="flex flex-col gap-0">
+                    <span className="text-4xl font-semibold">
+                      {currentTime.toLocaleDateString(undefined, {
+                        weekday: "long",
+                      })}
+                    </span>
+                    <span className="text-4xl font-semibold">
+                      {currentTime.getDate()}
+                    </span>
+                    <span className="text-4xl font-semibold">
+                      {currentTime.toLocaleDateString(undefined, {
+                        month: "long",
+                      })}
+                    </span>
+                    <span className="text-4xl font-semibold">
+                      {currentTime.getFullYear()}
+                    </span>
+                  </div>
+
+                  {/* Location moved to very bottom, added opacity-50 */}
+                  <div>
+                    <h1 className="text-3xl font-bold text-white/50 tracking-tight leading-tight">
+                      {LOCATION.name}
+                    </h1>
+                  </div>
                 </div>
               </div>
 
@@ -363,17 +386,6 @@
                     <span className="hidden md:inline">Simulated Mode</span>
                   </span>
                 )}
-                <button
-                  onClick={fetchWeather}
-                  disabled={loading}
-                  className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition-all text-white px-4 py-3 rounded-lg text-sm font-medium shadow-lg shadow-indigo-900/20 disabled:opacity-50 disabled:cursor-not-allowed w-full"
-                >
-                  <RefreshCw
-                    size={16}
-                    className={loading ? "animate-spin" : ""}
-                  />
-                  <span className="hidden md:inline">Refresh Forecast</span>
-                </button>
               </div>
             </aside>
 
@@ -389,16 +401,13 @@
               {!loading && (
                 <Card className="flex-1 min-h-0 flex flex-row gap-0">
                   {/* Col 1: Summary (Centered) */}
-                  <div className="flex flex-col justify-between items-center w-32 md:w-40 shrink-0 text-center">
+                  <div className="flex flex-col justify-center items-center w-32 md:w-40 shrink-0 text-center">
                     <StatSummary
                       icon={Thermometer}
                       value={`${Math.round(current.temp)}°C`}
                       subtext={`Feels like ${Math.round(current.temp - 2)}°`}
                       color="bg-orange-500"
                     />
-                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                      Next 12 Hours
-                    </h4>
                   </div>
                   {/* Col 2: Chart */}
                   <div className="flex-1 min-w-0 rounded-lg py-4 pr-4 pl-0 h-full flex flex-col">
@@ -417,15 +426,12 @@
               {!loading && (
                 <Card className="flex-1 min-h-0 flex flex-row gap-0">
                   {/* Col 1: Summary (Centered) */}
-                  <div className="flex flex-col justify-between items-center w-32 md:w-40 shrink-0 text-center">
+                  <div className="flex flex-col justify-center items-center w-32 md:w-40 shrink-0 text-center">
                     <StatSummary
                       icon={CloudRain}
                       value={`${Math.round(current.precip)}%`}
                       color="bg-blue-500"
                     />
-                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                      Chance of Rain
-                    </h4>
                   </div>
                   {/* Col 2: Chart */}
                   <div className="flex-1 min-w-0 rounded-lg py-4 pr-4 pl-0 h-full flex flex-col">
@@ -444,15 +450,12 @@
               {!loading && (
                 <Card className="flex-1 min-h-0 flex flex-row gap-0">
                   {/* Col 1: Summary (Centered) */}
-                  <div className="flex flex-col justify-between items-center w-32 md:w-40 shrink-0 text-center">
+                  <div className="flex flex-col justify-center items-center w-32 md:w-40 shrink-0 text-center">
                     <StatSummary
                       icon={Wind}
                       value={`${Math.round(current.wind)} mph`}
                       color="bg-teal-500"
                     />
-                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                      Wind Trend
-                    </h4>
                   </div>
                   {/* Col 2: Chart */}
                   <div className="flex-1 min-w-0 rounded-lg py-4 pr-4 pl-0 h-full flex flex-col">
