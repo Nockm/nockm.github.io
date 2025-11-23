@@ -36,10 +36,12 @@
 
     <!-- We use type="text/babel" with data-type="module" to allow ES6 imports in the browser -->
     <script type="text/babel" data-type="module">
+      // Added useRef to imports
       import React, {
         useState,
         useEffect,
         useMemo,
+        useRef,
       } from "https://esm.sh/react@18.2.0?dev";
       import { createRoot } from "https://esm.sh/react-dom@18.2.0/client?dev";
       import {
@@ -85,13 +87,9 @@
       const BarChart = ({ data, dataKey, colorClass, unit, maxDomain }) => {
         if (!data || data.length === 0) return null;
 
-        // Calculate max value for scaling
         const rawMax = Math.max(...data.map((d) => d[dataKey]));
-        // STRICT SCALING: Use maxDomain if provided, otherwise match the largest bar exactly.
-        // Fallback to 10 to avoid division by zero if all values are 0.
         const maxValue = maxDomain || rawMax || 10;
 
-        // Generate 5 ticks (0, 25%, 50%, 75%, 100%)
         const ticks = [0, 0.25, 0.5, 0.75, 1].map((p) => ({
           value: maxValue * p,
           percent: p * 100,
@@ -107,8 +105,6 @@
         };
 
         return (
-          // Flex-1 ensures the chart container consumes all available vertical space in the card
-          // mt-0 because we are in a flex-row layout now
           <div className="w-full flex-1 flex gap-3 text-xs min-h-0">
             {/* Y-Axis Labels Column */}
             <div className="relative w-8 h-full text-slate-500 font-mono text-right shrink-0">
@@ -118,7 +114,6 @@
                   className="absolute right-0 leading-none"
                   style={{
                     bottom: `${tick.percent}%`,
-                    // Center vertically ON the line.
                     transform: "translateY(50%)",
                   }}
                 >
@@ -166,7 +161,6 @@
                           }`}
                           style={{ height: `${heightPercent}%` }}
                         >
-                          {/* Top highlight line for clearer reading against dark bg, only show if bar has height */}
                           {heightPercent > 0 && (
                             <div className="absolute top-0 left-0 right-0 h-[1px] bg-white/30" />
                           )}
@@ -177,7 +171,7 @@
                 </div>
               </div>
 
-              {/* X-Axis & Values Section (Below Grid) */}
+              {/* X-Axis & Values Section */}
               <div className="flex justify-between mt-2 border-t border-transparent">
                 {data.map((item, index) => {
                   const timeLabel = formatTime(item.time, index);
@@ -189,7 +183,6 @@
                       key={index}
                       className="flex-1 flex flex-col items-center gap-1 min-w-0"
                     >
-                      {/* Time */}
                       <span
                         className={`text-[9px] sm:text-[10px] whitespace-nowrap overflow-hidden text-ellipsis ${
                           isCurrent ? "text-white font-bold" : "text-slate-500"
@@ -197,7 +190,6 @@
                       >
                         {timeLabel}
                       </span>
-                      {/* Value - No Units, Larger Font */}
                       <span
                         className={`text-sm sm:text-base font-mono font-bold ${
                           isCurrent ? "text-indigo-300" : "text-slate-300"
@@ -214,7 +206,6 @@
         );
       };
 
-      // Updated StatSummary to support vertical layout
       const StatSummary = ({ icon: Icon, label, value, subtext, color }) => (
         <div className="flex flex-col items-start gap-3">
           <div className={`p-3 rounded-full ${color} bg-opacity-20 text-white`}>
@@ -240,6 +231,10 @@
         const [error, setError] = useState(null);
         const [usingMock, setUsingMock] = useState(false);
         const [lastUpdated, setLastUpdated] = useState(null);
+
+        // New State for Time and Ref for tracking hour changes
+        const [currentTime, setCurrentTime] = useState(new Date());
+        const lastHourRef = useRef(new Date().getHours());
 
         const fetchWeather = async () => {
           setLoading(true);
@@ -287,8 +282,27 @@
           }
         };
 
+        // Effect for Clock and Auto-Refresh on Hour Change
+        useEffect(() => {
+          const timer = setInterval(() => {
+            const now = new Date();
+            setCurrentTime(now);
+
+            // Logic: If the current hour is different from the last checked hour, refresh data
+            if (now.getHours() !== lastHourRef.current) {
+              lastHourRef.current = now.getHours();
+              console.log("Hour changed, refreshing data...");
+              fetchWeather();
+            }
+          }, 1000);
+
+          return () => clearInterval(timer);
+        }, []);
+
+        // Initial Fetch
         useEffect(() => {
           fetchWeather();
+          // Keep the safety 15min interval as well
           const interval = setInterval(fetchWeather, 900000);
           return () => clearInterval(interval);
         }, []);
@@ -296,42 +310,58 @@
         const current = weatherData[0] || {};
 
         return (
-          // Changed: bg-slate-900 to bg-black
           <div className="h-screen w-full bg-black text-slate-200 font-sans selection:bg-indigo-500 selection:text-white flex flex-col md:flex-row overflow-hidden">
             {/* --- Column 1: Narrow Sidebar (Title & Controls) --- */}
-            {/* Changed: bg-slate-900/50 to bg-black to match request */}
             <aside className="w-full md:w-80 flex-none p-4 md:p-6 flex flex-row md:flex-col justify-between gap-6 border-b md:border-b-0 md:border-r border-slate-800/50 bg-black z-10">
               {/* Top Section */}
-              <div className="flex-1">
-                <div className="flex items-center gap-2 text-indigo-400 mb-1">
-                  <MapPin size={18} />
-                  <span className="font-semibold tracking-wide uppercase text-xs">
-                    Current Location
-                  </span>
+              <div className="flex-1 flex flex-col justify-between md:justify-start gap-4">
+                <div>
+                  <div className="flex items-center gap-2 text-indigo-400 mb-1">
+                    <MapPin size={18} />
+                    <span className="font-semibold tracking-wide uppercase text-xs">
+                      Current Location
+                    </span>
+                  </div>
+                  <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight leading-tight">
+                    {LOCATION.name}
+                  </h1>
                 </div>
-                <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight leading-tight">
-                  {LOCATION.name}
-                </h1>
-                <p className="text-slate-400 text-sm mt-2 flex items-center gap-2">
-                  <Clock size={14} />
-                  {lastUpdated
-                    ? lastUpdated.toLocaleDateString(undefined, {
-                        weekday: "long",
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })
-                    : "Loading..."}
-                </p>
+
+                {/* Clock Section */}
+                <div className="hidden md:block mt-8">
+                  <div className="text-5xl font-mono font-light text-white tracking-tighter">
+                    {currentTime.toLocaleTimeString()}
+                  </div>
+                  <p className="text-slate-400 text-sm mt-2 flex items-center gap-2">
+                    {currentTime.toLocaleDateString(undefined, {
+                      weekday: "long",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </p>
+                </div>
+
+                {/* Mobile Clock (Simplified) */}
+                <div className="block md:hidden text-right">
+                  <div className="text-xl font-mono font-bold text-white">
+                    {currentTime.toLocaleTimeString()}
+                  </div>
+                  <p className="text-slate-400 text-xs">
+                    {currentTime.toLocaleDateString(undefined, {
+                      weekday: "short",
+                      day: "numeric",
+                    })}
+                  </p>
+                </div>
               </div>
 
               {/* Controls Section */}
-              <div className="flex flex-col gap-3 justify-end min-w-[140px] md:min-w-0">
+              <div className="flex flex-col gap-3 justify-end min-w-[140px] md:min-w-0 hidden md:flex">
                 {usingMock && (
                   <span className="bg-yellow-500/10 text-yellow-500 text-xs px-3 py-2 rounded-lg border border-yellow-500/20 flex items-center justify-center gap-2">
                     <AlertCircle size={12} />
                     <span className="hidden md:inline">Simulated Mode</span>
-                    <span className="md:hidden">Simulated</span>
                   </span>
                 )}
                 <button
@@ -344,7 +374,6 @@
                     className={loading ? "animate-spin" : ""}
                   />
                   <span className="hidden md:inline">Refresh Forecast</span>
-                  <span className="md:hidden">Refresh</span>
                 </button>
               </div>
             </aside>
@@ -373,7 +402,7 @@
                       Next 12 Hours
                     </h4>
                   </div>
-                  {/* Col 2: Chart - Removed bg-slate-900/50 */}
+                  {/* Col 2: Chart */}
                   <div className="flex-1 min-w-0 rounded-lg p-4 h-full flex flex-col">
                     <BarChart
                       data={weatherData}
@@ -402,7 +431,7 @@
                       Chance of Rain
                     </h4>
                   </div>
-                  {/* Col 2: Chart - Removed bg-slate-900/50 */}
+                  {/* Col 2: Chart */}
                   <div className="flex-1 min-w-0 rounded-lg p-4 h-full flex flex-col">
                     <BarChart
                       data={weatherData}
@@ -431,7 +460,7 @@
                       Wind Trend
                     </h4>
                   </div>
-                  {/* Col 2: Chart - Removed bg-slate-900/50 */}
+                  {/* Col 2: Chart */}
                   <div className="flex-1 min-w-0 rounded-lg p-4 h-full flex flex-col">
                     <BarChart
                       data={weatherData}
