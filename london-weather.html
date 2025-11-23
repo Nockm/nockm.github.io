@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>London Weather Dashboard</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Babel for JSX transformation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Tailwind Config to match the slate/indigo theme preferences -->
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+            },
+          },
+        },
+      };
+    </script>
+
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <!-- We use type="text/babel" with data-type="module" to allow ES6 imports in the browser -->
+    <script type="text/babel" data-type="module">
+      import React, {
+        useState,
+        useEffect,
+        useMemo,
+      } from "https://esm.sh/react@18.2.0?dev";
+      import { createRoot } from "https://esm.sh/react-dom@18.2.0/client?dev";
+      import {
+        CloudRain,
+        Wind,
+        Thermometer,
+        Clock,
+        MapPin,
+        RefreshCw,
+        Droplets,
+        Navigation,
+        AlertCircle,
+      } from "https://esm.sh/lucide-react@0.263.1?dev";
+
+      // --- Configuration & Constants ---
+      const LOCATION = {
+        name: "London, UK",
+        lat: 51.5074,
+        lon: -0.1278,
+      };
+
+      const MOCK_DATA = Array.from({ length: 13 }).map((_, i) => {
+        const now = new Date();
+        now.setHours(now.getHours() + i);
+        return {
+          time: now.toISOString(),
+          temp: 9 + Math.random() * 3, // 9-12°C
+          precip: Math.random() * 60, // 0-60% chance
+          wind: 15 + Math.random() * 10, // 15-25 km/h
+        };
+      });
+
+      // --- Components ---
+
+      const Card = ({ children, className = "" }) => (
+        <div
+          className={`bg-slate-800/50 backdrop-blur-md border border-slate-700/50 rounded-xl p-4 md:p-6 shadow-xl ${className}`}
+        >
+          {children}
+        </div>
+      );
+
+      const BarChart = ({ data, dataKey, colorClass, unit, maxDomain }) => {
+        if (!data || data.length === 0) return null;
+
+        // Calculate max value for scaling
+        const rawMax = Math.max(...data.map((d) => d[dataKey]));
+        // STRICT SCALING: Use maxDomain if provided, otherwise match the largest bar exactly.
+        // Fallback to 10 to avoid division by zero if all values are 0.
+        const maxValue = maxDomain || rawMax || 10;
+
+        // Generate 5 ticks (0, 25%, 50%, 75%, 100%)
+        const ticks = [0, 0.25, 0.5, 0.75, 1].map((p) => ({
+          value: maxValue * p,
+          percent: p * 100,
+        }));
+
+        const formatTime = (isoString, index) => {
+          if (index === 0) return "Now";
+          const date = new Date(isoString);
+          const hours = date.getHours();
+          const ampm = hours >= 12 ? "PM" : "AM";
+          const hour12 = hours % 12 || 12;
+          return `${hour12}${ampm}`;
+        };
+
+        return (
+          // Flex-1 ensures the chart container consumes all available vertical space in the card
+          <div className="w-full mt-2 flex-1 flex gap-3 text-xs min-h-0">
+            {/* Y-Axis Labels Column */}
+            <div className="relative w-8 h-full text-slate-500 font-mono text-right shrink-0">
+              {ticks.map((tick, i) => (
+                <span
+                  key={i}
+                  className="absolute right-0 leading-none"
+                  style={{
+                    bottom: `${tick.percent}%`,
+                    // Center vertically ON the line.
+                    transform: "translateY(50%)",
+                  }}
+                >
+                  {Math.round(tick.value)}
+                </span>
+              ))}
+            </div>
+
+            {/* Main Chart Area */}
+            <div className="flex-1 flex flex-col h-full">
+              {/* Bars and Grid Container */}
+              <div className="relative flex-1 w-full">
+                {/* Background Grid Lines */}
+                <div className="absolute inset-0 pointer-events-none">
+                  {ticks.map((tick, i) => (
+                    <div
+                      key={i}
+                      className={`absolute left-0 right-0 border-b ${
+                        tick.percent === 0
+                          ? "border-slate-500/50"
+                          : "border-slate-700/30 border-dashed"
+                      }`}
+                      style={{ bottom: `${tick.percent}%` }}
+                    />
+                  ))}
+                </div>
+
+                {/* Bars */}
+                <div className="absolute inset-0 flex items-end justify-between">
+                  {data.map((item, index) => {
+                    const value = item[dataKey];
+                    const heightPercent = (value / maxValue) * 100;
+                    const isCurrent = index === 0;
+
+                    return (
+                      <div
+                        key={index}
+                        className="flex-1 flex flex-col justify-end items-center h-full group px-[1px] z-10"
+                      >
+                        <div
+                          className={`w-full max-w-[24px] rounded-t-[2px] transition-all duration-500 ease-out relative ${colorClass} ${
+                            isCurrent
+                              ? "brightness-110 opacity-100"
+                              : "opacity-80 group-hover:opacity-100"
+                          }`}
+                          style={{ height: `${heightPercent}%` }}
+                        >
+                          {/* Top highlight line for clearer reading against dark bg, only show if bar has height */}
+                          {heightPercent > 0 && (
+                            <div className="absolute top-0 left-0 right-0 h-[1px] bg-white/30" />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* X-Axis & Values Section (Below Grid) */}
+              <div className="flex justify-between mt-2 border-t border-transparent">
+                {data.map((item, index) => {
+                  const timeLabel = formatTime(item.time, index);
+                  const isCurrent = index === 0;
+                  const value = item[dataKey];
+
+                  return (
+                    <div
+                      key={index}
+                      className="flex-1 flex flex-col items-center gap-1 min-w-0"
+                    >
+                      {/* Time */}
+                      <span
+                        className={`text-[9px] sm:text-[10px] whitespace-nowrap overflow-hidden text-ellipsis ${
+                          isCurrent ? "text-white font-bold" : "text-slate-500"
+                        }`}
+                      >
+                        {timeLabel}
+                      </span>
+                      {/* Value - No Units, Larger Font */}
+                      <span
+                        className={`text-sm sm:text-base font-mono font-bold ${
+                          isCurrent ? "text-indigo-300" : "text-slate-300"
+                        }`}
+                      >
+                        {value.toFixed(0)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      const StatSummary = ({ icon: Icon, label, value, subtext, color }) => (
+        <div className="flex items-center gap-4">
+          <div className={`p-3 rounded-full ${color} bg-opacity-20 text-white`}>
+            <Icon size={24} />
+          </div>
+          <div>
+            <p className="text-slate-400 text-sm font-medium">{label}</p>
+            <div className="flex items-baseline gap-2">
+              <h3 className="text-2xl font-bold text-slate-100">{value}</h3>
+              {subtext && (
+                <span className="text-xs text-slate-500">{subtext}</span>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+
+      function App() {
+        const [weatherData, setWeatherData] = useState([]);
+        const [loading, setLoading] = useState(true);
+        const [error, setError] = useState(null);
+        const [usingMock, setUsingMock] = useState(false);
+        const [lastUpdated, setLastUpdated] = useState(null);
+
+        const fetchWeather = async () => {
+          setLoading(true);
+          setError(null);
+          try {
+            const response = await fetch(
+              `https://api.open-meteo.com/v1/forecast?latitude=${LOCATION.lat}&longitude=${LOCATION.lon}&hourly=temperature_2m,precipitation_probability,windspeed_10m&forecast_days=2&timezone=auto`
+            );
+
+            if (!response.ok) throw new Error("Failed to fetch data");
+
+            const data = await response.json();
+
+            const currentHourISO = new Date().toISOString().slice(0, 13);
+            let startIndex = data.hourly.time.findIndex((t) =>
+              t.startsWith(currentHourISO)
+            );
+            if (startIndex === -1) startIndex = 0;
+
+            const slicedData = [];
+            for (let i = startIndex; i < startIndex + 13; i++) {
+              if (data.hourly.time[i]) {
+                slicedData.push({
+                  time: data.hourly.time[i],
+                  temp: data.hourly.temperature_2m[i],
+                  precip: data.hourly.precipitation_probability[i],
+                  wind: data.hourly.windspeed_10m[i],
+                });
+              }
+            }
+
+            setWeatherData(slicedData);
+            setUsingMock(false);
+            setLastUpdated(new Date());
+          } catch (err) {
+            console.error("Weather fetch failed, using mock data", err);
+            setError(
+              "Unable to connect to weather service. Showing simulated data."
+            );
+            setWeatherData(MOCK_DATA);
+            setUsingMock(true);
+            setLastUpdated(new Date());
+          } finally {
+            setLoading(false);
+          }
+        };
+
+        useEffect(() => {
+          fetchWeather();
+          const interval = setInterval(fetchWeather, 900000);
+          return () => clearInterval(interval);
+        }, []);
+
+        const current = weatherData[0] || {};
+
+        return (
+          <div className="h-screen w-full bg-slate-900 text-slate-200 font-sans selection:bg-indigo-500 selection:text-white flex flex-col overflow-hidden">
+            {/* --- Header --- */}
+            <header className="w-full p-4 md:p-6 pb-0 flex-none flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 text-indigo-400 mb-1">
+                  <MapPin size={18} />
+                  <span className="font-semibold tracking-wide uppercase text-xs">
+                    Current Location
+                  </span>
+                </div>
+                <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight">
+                  {LOCATION.name}
+                </h1>
+                <p className="text-slate-400 text-sm mt-1 flex items-center gap-2">
+                  <Clock size={14} />
+                  {lastUpdated
+                    ? lastUpdated.toLocaleDateString(undefined, {
+                        weekday: "long",
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })
+                    : "Loading..."}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {usingMock && (
+                  <span className="bg-yellow-500/10 text-yellow-500 text-xs px-3 py-1 rounded-full border border-yellow-500/20 flex items-center gap-2">
+                    <AlertCircle size={12} />
+                    Simulated Mode
+                  </span>
+                )}
+                <button
+                  onClick={fetchWeather}
+                  disabled={loading}
+                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition-all text-white px-4 py-2 rounded-lg text-sm font-medium shadow-lg shadow-indigo-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <RefreshCw
+                    size={16}
+                    className={loading ? "animate-spin" : ""}
+                  />
+                  Refresh
+                </button>
+              </div>
+            </header>
+
+            {/* --- Main Content --- */}
+            <main className="flex-1 w-full p-4 md:p-6 flex flex-col gap-4 overflow-hidden">
+              {loading && !weatherData.length && (
+                <div className="h-full flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
+                </div>
+              )}
+
+              {/* --- Temperature Card --- */}
+              {!loading && (
+                <Card className="flex-1 flex flex-col min-h-0">
+                  <div className="flex justify-between items-start mb-2 flex-none">
+                    <StatSummary
+                      icon={Thermometer}
+                      label="Temperature"
+                      value={`${Math.round(current.temp)}°C`}
+                      subtext={`Feels like ${Math.round(current.temp - 2)}°`}
+                      color="bg-orange-500"
+                    />
+                  </div>
+                  <div className="flex-1 flex flex-col bg-slate-900/50 rounded-lg p-4 min-h-0">
+                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex-none">
+                      Next 12 Hours
+                    </h4>
+                    <BarChart
+                      data={weatherData}
+                      dataKey="temp"
+                      unit="°"
+                      colorClass="bg-gradient-to-t from-orange-500 to-yellow-400"
+                      maxDomain={null}
+                    />
+                  </div>
+                </Card>
+              )}
+
+              {/* --- Precipitation Card --- */}
+              {!loading && (
+                <Card className="flex-1 flex flex-col min-h-0">
+                  <div className="flex justify-between items-start mb-2 flex-none">
+                    <StatSummary
+                      icon={CloudRain}
+                      label="Precipitation"
+                      value={`${Math.round(current.precip)}%`}
+                      subtext="Probability"
+                      color="bg-blue-500"
+                    />
+                  </div>
+                  <div className="flex-1 flex flex-col bg-slate-900/50 rounded-lg p-4 min-h-0">
+                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex-none">
+                      Chance of Rain
+                    </h4>
+                    <BarChart
+                      data={weatherData}
+                      dataKey="precip"
+                      unit="%"
+                      colorClass="bg-gradient-to-t from-blue-600 to-cyan-400"
+                      maxDomain={100}
+                    />
+                  </div>
+                </Card>
+              )}
+
+              {/* --- Wind Card --- */}
+              {!loading && (
+                <Card className="flex-1 flex flex-col min-h-0">
+                  <div className="flex justify-between items-start mb-2 flex-none">
+                    <StatSummary
+                      icon={Wind}
+                      label="Wind Speed"
+                      value={`${Math.round(current.wind)}`}
+                      subtext="km/h"
+                      color="bg-teal-500"
+                    />
+                  </div>
+                  <div className="flex-1 flex flex-col bg-slate-900/50 rounded-lg p-4 min-h-0">
+                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex-none">
+                      Wind Trend
+                    </h4>
+                    <BarChart
+                      data={weatherData}
+                      dataKey="wind"
+                      unit=" km/h"
+                      colorClass="bg-gradient-to-t from-teal-600 to-emerald-400"
+                      maxDomain={null}
+                    />
+                  </div>
+                </Card>
+              )}
+            </main>
+          </div>
+        );
+      }
+
+      const root = createRoot(document.getElementById("root"));
+      root.render(<App />);
+    </script>
+  </body>
+</html>
