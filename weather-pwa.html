@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Dashboard</title>
+    
+    <!-- PWA Meta Tags (iOS & General) -->
+    <meta name="theme-color" content="#000000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Weather">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/4052/4052984.png">
+
+    <!-- Embedded Manifest (Data URI) -->
+    <link rel="manifest" href='data:application/manifest+json;charset=utf-8,%7B%22name%22%3A%22London%20Weather%20Dashboard%22%2C%22short_name%22%3A%22Weather%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23000000%22%2C%22theme_color%22%3A%22%23000000%22%2C%22orientation%22%3A%22any%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fcdn-icons-png.flaticon.com%2F512%2F4052%2F4052984.png%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fpng%22%7D%5D%7D'>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Babel for JSX transformation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Google Fonts: Poppins -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Poppins', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body { margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <!-- React Application -->
+    <script type="text/babel" data-type="module">
+        import React, { useState, useEffect, useMemo, useRef } from 'https://esm.sh/react@18.2.0?dev';
+        import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client?dev';
+        import { 
+            CloudRain, 
+            Wind, 
+            Thermometer, 
+            Clock, 
+            MapPin, 
+            RefreshCw, 
+            Droplets, 
+            Navigation, 
+            AlertCircle 
+        } from 'https://esm.sh/lucide-react@0.263.1?dev';
+
+        const DEFAULT_LOCATION = {
+            name: 'London, UK',
+            lat: 51.5074,
+            lon: -0.1278
+        };
+
+        const Card = ({ children, className = "" }) => (
+            <div className={`bg-slate-800/50 backdrop-blur-md border border-slate-700/50 rounded-xl p-4 md:p-6 shadow-xl ${className}`}>
+                {children}
+            </div>
+        );
+
+        const BarChart = ({ data, dataKey, colorClass, unit, maxDomain }) => {
+            if (!data || data.length === 0) return null;
+
+            const rawMax = Math.max(...data.map(d => d[dataKey]));
+            const maxValue = maxDomain || rawMax || 10;
+            
+            const ticks = [0, 0.25, 0.5, 0.75, 1].map(p => ({
+                value: maxValue * p,
+                percent: p * 100
+            }));
+
+            const formatTime = (isoString, index) => {
+                if (index === 0) return 'Now';
+                const date = new Date(isoString);
+                const hours = date.getHours();
+                const ampm = hours >= 12 ? 'PM' : 'AM';
+                const hour12 = hours % 12 || 12;
+                return `${hour12}${ampm}`;
+            };
+
+            return (
+                <div className="w-full flex-1 flex gap-3 text-xs min-h-0">
+                    <div className="relative w-8 h-full text-slate-500 text-right shrink-0">
+                        {ticks.map((tick, i) => (
+                        <span 
+                            key={i} 
+                            className="absolute right-0 leading-none"
+                            style={{ bottom: `${tick.percent}%`, transform: 'translateY(50%)' }}
+                        >
+                            {Math.round(tick.value)}
+                        </span>
+                        ))}
+                    </div>
+                    <div className="flex-1 flex flex-col h-full">
+                        <div className="relative flex-1 w-full">
+                            <div className="absolute inset-0 pointer-events-none">
+                                {ticks.map((tick, i) => (
+                                <div 
+                                    key={i} 
+                                    className={`absolute left-0 right-0 border-b ${tick.percent === 0 ? 'border-slate-500/50' : 'border-slate-700/30 border-dashed'}`} 
+                                    style={{ bottom: `${tick.percent}%` }}
+                                />
+                                ))}
+                            </div>
+                            <div className="absolute inset-0 flex items-end justify-between">
+                                {data.map((item, index) => {
+                                const value = item[dataKey];
+                                const heightPercent = (value / maxValue) * 100; 
+                                const isCurrent = index === 0;
+                                return (
+                                    <div key={index} className="flex-1 flex flex-col justify-end items-center h-full group px-[1px] z-10">
+                                    <div 
+                                        className={`w-full max-w-[24px] rounded-t-[2px] transition-all duration-500 ease-out relative ${colorClass} ${isCurrent ? 'brightness-110 opacity-100' : 'opacity-80 group-hover:opacity-100'}`}
+                                        style={{ height: `${heightPercent}%` }} 
+                                    >
+                                        {heightPercent > 0 && <div className="absolute top-0 left-0 right-0 h-[1px] bg-white/30" />}
+                                    </div>
+                                    </div>
+                                );
+                                })}
+                            </div>
+                        </div>
+                        <div className="flex justify-between mt-2 border-t border-transparent">
+                        {data.map((item, index) => {
+                            const timeLabel = formatTime(item.time, index);
+                            const isCurrent = index === 0;
+                            const value = item[dataKey];
+                            return (
+                            <div key={index} className="flex-1 flex flex-col items-center gap-1 min-w-0">
+                                <span className={`text-[9px] sm:text-[10px] whitespace-nowrap overflow-hidden text-ellipsis ${isCurrent ? 'text-white font-bold' : 'text-slate-500'}`}>
+                                {timeLabel}
+                                </span>
+                                <span className={`text-sm sm:text-base font-bold ${isCurrent ? 'text-indigo-300' : 'text-slate-300'}`}>
+                                {value.toFixed(0)}
+                                </span>
+                            </div>
+                            );
+                        })}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const StatSummary = ({ icon: Icon, value, subtext, color }) => (
+            <div className="flex flex-col items-center gap-3 text-center w-full">
+                <div className={`p-4 rounded-full ${color} bg-opacity-20 text-white`}>
+                    <Icon size={72} />
+                </div>
+                <div>
+                    <div className="flex flex-col gap-0">
+                        <h3 className="text-3xl font-bold text-slate-100 tracking-tight">{value}</h3>
+                        {subtext && <span className="text-lg text-slate-500 mt-1">{subtext}</span>}
+                    </div>
+                </div>
+            </div>
+        );
+
+        function App() {
+            const [location, setLocation] = useState(DEFAULT_LOCATION);
+            const [weatherData, setWeatherData] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
+            const [usingMock, setUsingMock] = useState(false);
+            const [currentTime, setCurrentTime] = useState(new Date());
+            const lastHourRef = useRef(new Date().getHours());
+
+            const fetchWeather = async (lat = location.lat, lon = location.lon) => {
+                setLoading(true);
+                setError(null);
+                try {
+                    const response = await fetch(
+                        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,precipitation_probability,windspeed_10m&wind_speed_unit=mph&forecast_days=2&timezone=auto`
+                    );
+                    if (!response.ok) throw new Error('Failed to fetch data');
+                    const data = await response.json();
+                    
+                    const currentHourISO = new Date().toISOString().slice(0, 13);
+                    let startIndex = data.hourly.time.findIndex(t => t.startsWith(currentHourISO));
+                    if (startIndex === -1) startIndex = 0;
+
+                    const slicedData = [];
+                    for (let i = startIndex; i < startIndex + 13; i++) {
+                        if (data.hourly.time[i]) {
+                        slicedData.push({
+                            time: data.hourly.time[i],
+                            temp: data.hourly.temperature_2m[i],
+                            precip: data.hourly.precipitation_probability[i],
+                            wind: data.hourly.windspeed_10m[i]
+                        });
+                        }
+                    }
+                    setWeatherData(slicedData);
+                    setUsingMock(false);
+                } catch (err) {
+                    console.error("Weather fetch failed", err);
+                    setError("Unable to connect. Showing simulated data.");
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            useEffect(() => {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        async (position) => {
+                            const { latitude, longitude } = position.coords;
+                            let locationName = "Your Location";
+                            try {
+                                const geoRes = await fetch(
+                                    `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+                                );
+                                const geoData = await geoRes.json();
+                                const city = geoData.city || geoData.locality || geoData.principalSubdivision;
+                                const country = geoData.countryCode;
+                                if (city) locationName = country ? `${city}, ${country}` : city;
+                            } catch (e) { console.warn("Reverse geocoding failed"); }
+                            setLocation({ name: locationName, lat: latitude, lon: longitude });
+                            fetchWeather(latitude, longitude);
+                        },
+                        (err) => { fetchWeather(DEFAULT_LOCATION.lat, DEFAULT_LOCATION.lon); }
+                    );
+                } else { fetchWeather(DEFAULT_LOCATION.lat, DEFAULT_LOCATION.lon); }
+            }, []);
+
+            useEffect(() => {
+                const timer = setInterval(() => {
+                    const now = new Date();
+                    setCurrentTime(now);
+                    if (now.getHours() !== lastHourRef.current) {
+                        lastHourRef.current = now.getHours();
+                        fetchWeather(location.lat, location.lon);
+                    }
+                }, 1000);
+                return () => clearInterval(timer);
+            }, [location]);
+
+            const current = weatherData[0] || {};
+
+            return (
+                <div className="h-screen w-full bg-black text-slate-200 font-sans selection:bg-indigo-500 selection:text-white flex flex-col md:flex-row overflow-hidden">
+                    <aside className="w-full md:w-80 flex-none p-4 md:p-6 flex flex-row md:flex-col justify-between gap-6 border-b md:border-b-0 md:border-r border-slate-800/50 bg-black z-10">
+                        <div className="flex-1 flex flex-col justify-between md:justify-start gap-4">
+                            <div className="hidden md:block">
+                                 <div className="text-7xl font-light text-white tracking-tighter leading-none">
+                                    {currentTime.toLocaleTimeString()}
+                                 </div>
+                            </div>
+                            <div className="flex md:hidden flex-row justify-between items-center w-full">
+                                 <div className="flex flex-col">
+                                     <h1 className="text-2xl font-bold text-white/50 tracking-tight leading-tight">{location.name}</h1>
+                                 </div>
+                                 <div className="text-right">
+                                     <div className="text-xl font-bold text-white">
+                                        {currentTime.toLocaleTimeString()}
+                                     </div>
+                                     <p className="text-slate-400 text-xs">
+                                        {currentTime.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}
+                                    </p>
+                                 </div>
+                            </div>
+                            <div className="hidden md:flex flex-col gap-4 mt-auto text-white">
+                                <div className="flex flex-col gap-0">
+                                    <span className="text-4xl font-semibold">{currentTime.toLocaleDateString(undefined, { weekday: 'long' })}</span>
+                                    <span className="text-4xl font-semibold">{currentTime.getDate()}</span>
+                                    <span className="text-4xl font-semibold">{currentTime.toLocaleDateString(undefined, { month: 'long' })}</span>
+                                    <span className="text-4xl font-semibold">{currentTime.getFullYear()}</span>
+                                </div>
+                                <div>
+                                    <h1 className="text-3xl font-bold text-white/50 tracking-tight leading-tight">{location.name}</h1>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex flex-col gap-3 justify-end min-w-[140px] md:min-w-0 hidden md:flex">
+                            {usingMock && (
+                                <span className="bg-yellow-500/10 text-yellow-500 text-xs px-3 py-2 rounded-lg border border-yellow-500/20 flex items-center justify-center gap-2">
+                                    <AlertCircle size={12} />
+                                    <span className="hidden md:inline">Simulated Mode</span>
+                                </span>
+                            )}
+                        </div>
+                    </aside>
+
+                    <main className="flex-1 w-full p-4 md:p-6 flex flex-col gap-4 overflow-hidden min-w-0 h-full">
+                        {loading && !weatherData.length && (
+                            <div className="h-full flex items-center justify-center">
+                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
+                            </div>
+                        )}
+                        {!loading && (
+                        <>
+                            <Card className="flex-1 min-h-0 flex flex-row gap-0">
+                                <div className="flex flex-col justify-center items-center w-32 md:w-40 shrink-0 text-center">
+                                    <StatSummary icon={Thermometer} value={`${Math.round(current.temp)}°C`} subtext={`Feels like ${Math.round(current.temp - 2)}°`} color="bg-orange-500" />
+                                </div>
+                                <div className="flex-1 min-w-0 rounded-lg py-4 pr-4 pl-0 h-full flex flex-col">
+                                    <BarChart data={weatherData} dataKey="temp" unit="°" colorClass="bg-gradient-to-t from-orange-500 to-yellow-400" maxDomain={null} />
+                                </div>
+                            </Card>
+                            <Card className="flex-1 min-h-0 flex flex-row gap-0">
+                                <div className="flex flex-col justify-center items-center w-32 md:w-40 shrink-0 text-center">
+                                    <StatSummary icon={CloudRain} value={`${Math.round(current.precip)}%`} color="bg-blue-500" />
+                                </div>
+                                <div className="flex-1 min-w-0 rounded-lg py-4 pr-4 pl-0 h-full flex flex-col">
+                                    <BarChart data={weatherData} dataKey="precip" unit="%" colorClass="bg-gradient-to-t from-blue-600 to-cyan-400" maxDomain={100} />
+                                </div>
+                            </Card>
+                            <Card className="flex-1 min-h-0 flex flex-row gap-0">
+                                <div className="flex flex-col justify-center items-center w-32 md:w-40 shrink-0 text-center">
+                                    <StatSummary icon={Wind} value={`${Math.round(current.wind)} mph`} color="bg-teal-500" />
+                                </div>
+                                <div className="flex-1 min-w-0 rounded-lg py-4 pr-4 pl-0 h-full flex flex-col">
+                                    <BarChart data={weatherData} dataKey="wind" unit=" mph" colorClass="bg-gradient-to-t from-teal-600 to-emerald-400" maxDomain={null} />
+                                </div>
+                            </Card>
+                        </>
+                        )}
+                    </main>
+                </div>
+            );
+        }
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
